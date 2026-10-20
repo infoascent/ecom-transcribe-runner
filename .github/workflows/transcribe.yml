@@ -25,10 +25,11 @@ jobs:
           mega-login "$LINK" >/dev/null 2>&1
           mega-find / --type=f -l 2>/dev/null | python3 scripts/plan.py 20 ${{ matrix.shard }} > list.txt
           echo "files: $(wc -l < list.txt)"
-          python3 scripts/transcribe.py list.txt
+          python3 scripts/transcribe.py list.txt 2>/dev/null || true
           tar czf out.tgz out
           openssl enc -aes-256-cbc -pbkdf2 -salt -in out.tgz -out out.enc -pass env:KEY
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: shard-${{ matrix.shard }}
           path: out.enc
