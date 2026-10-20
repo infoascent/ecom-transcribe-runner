@@ -1,0 +1,35 @@
+name: transcribe
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    steps:
+      - uses: actions/checkout@v4
+      - name: deps
+        run: |
+          sudo apt-get update -qq >/dev/null && sudo apt-get install -y -qq ffmpeg >/dev/null
+          wget -q https://mega.nz/linux/repo/xUbuntu_22.04/amd64/megacmd-xUbuntu_22.04_amd64.deb
+          sudo apt-get install -y -qq ./megacmd-xUbuntu_22.04_amd64.deb >/dev/null
+          pip install -q faster-whisper
+      - name: run
+        env:
+          LINK: ${{ secrets.SOURCE_LINK }}
+          KEY: ${{ secrets.OUT_KEY }}
+        run: |
+          mega-login "$LINK" >/dev/null 2>&1
+          mega-find / --type=f -l 2>/dev/null | python3 scripts/plan.py 20 ${{ matrix.shard }} > list.txt
+          echo "files: $(wc -l < list.txt)"
+          python3 scripts/transcribe.py list.txt
+          tar czf out.tgz out
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in out.tgz -out out.enc -pass env:KEY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: out.enc
+          retention-days: 7
