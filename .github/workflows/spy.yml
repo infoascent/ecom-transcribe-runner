@@ -1,0 +1,26 @@
+name: spy
+on: workflow_dispatch
+jobs:
+  s:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        kw: ["satisfait ou remboursé","commandez maintenant","achetez 2","1 acheté 1 offert","garantie 30 jours","offre spéciale","best-seller","nouvelle collection","promo","soldes","douleur","mal de dos","sommeil","posture","genoux","pieds","chien","chat","bébé","cuisine","voiture","ménage"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd spy && npm init -y >/dev/null && npm i -s playwright@1.56.1 && npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: scrape
+        run: |
+          cd spy
+          for t in 1 2 3; do node scrape.mjs "${{ matrix.kw }}" 1500 out.json && break; sleep 30; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kw-${{ strategy.job-index }}
+          path: spy/out.json
+          retention-days: 3
